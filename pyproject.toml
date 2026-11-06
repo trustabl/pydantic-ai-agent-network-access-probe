@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pydantic-ai-agent-network-access-probe"
+version = "0.1.0"
+description = "Scan agent tool code for runtime and network-access problems with Trustabl Probe, from a Pydantic AI agent."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [{ name = "Trustabl" }]
+keywords = ["pydantic-ai", "agent", "tools", "sandbox", "network-policy", "openshell", "trustabl", "probe"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Security",
+]
+dependencies = ["pydantic-ai-slim>=2.0", "pydantic>=2.0"]
+
+[project.urls]
+Homepage = "https://github.com/trustabl/pydantic-ai-agent-network-access-probe"
+Source = "https://github.com/trustabl/pydantic-ai-agent-network-access-probe"
+Issues = "https://github.com/trustabl/pydantic-ai-agent-network-access-probe/issues"
+
+# The Probe release this package runs. Separate from the package version
+# because the two change for different reasons: a packaging fix must not imply
+# a new Probe, and a Probe bump must not imply new code.
+[tool.trustabl]
+probe-version = "0.5.0"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pydantic_ai_agent_network_access_probe"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

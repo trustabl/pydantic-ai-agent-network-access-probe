@@ -1,0 +1,43 @@
+name: Release
+
+# Publishes to PyPI on a version tag, using trusted publishing (OIDC) rather
+# than a stored token.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:          # re-run a publish without re-tagging
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write          # trusted publishing
+      attestations: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Refuse to publish against a Probe release with no checksums
+        run: |
+          python - <<'PY'
+          import tomllib, urllib.request, urllib.error, sys
+          with open('pyproject.toml','rb') as f:
+              version = tomllib.load(f)['tool']['trustabl']['probe-version']
+          url = f'https://github.com/trustabl/agent-network-access-probe/releases/download/v{version}/checksums.txt'
+          try:
+              urllib.request.urlopen(url, timeout=30)
+          except urllib.error.HTTPError as e:
+              sys.exit(f'Probe v{version} has no checksums.txt ({e.code}); nothing would verify at runtime')
+          print(f'Probe v{version} publishes checksums.txt')
+          PY
+
+      - run: pip install build && python -m build
+      - run: pip install -e . pytest && pytest -q
+      - uses: pypa/gh-action-pypi-publish@release/v1
