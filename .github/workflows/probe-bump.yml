@@ -1,0 +1,59 @@
+name: Probe bump
+
+# Opens a PR when Probe ships a release newer than the pinned one.
+# The pin is deliberate, so this proposes the bump rather than taking it.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          python - <<'PY'
+          import json, os, tomllib, urllib.request
+
+          with open('pyproject.toml','rb') as f:
+              pinned = tomllib.load(f)['tool']['trustabl']['probe-version']
+
+          req = urllib.request.Request(
+              'https://api.github.com/repos/trustabl/agent-network-access-probe/releases/latest')
+          req.add_header('Accept','application/vnd.github+json')
+          latest = json.load(urllib.request.urlopen(req, timeout=30))['tag_name'].lstrip('v')
+
+          if latest == pinned:
+              print(f'pinned {pinned} is current')
+          else:
+              for path, pattern in (
+                  ('pyproject.toml', 'probe-version = "%s"'),
+                  ('src/pydantic_ai_agent_network_access_probe/__init__.py', "PROBE_VERSION = '%s'"),
+                  ('src/pydantic_ai_agent_network_access_probe/_capability.py', "_PROBE_VERSION = '%s'"),
+                  ('README.md', '| `probe_version` | `%s` |'),
+              ):
+                  text = open(path, encoding='utf-8').read()
+                  open(path, 'w', encoding='utf-8', newline='\n').write(
+                      text.replace(pattern % pinned, pattern % latest))
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+                  out.write(f'pinned={pinned}\nlatest={latest}\nchanged=true\n')
+          PY
+      - if: steps.check.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/probe-bump
+          commit-message: "chore: pin Probe v${{ steps.check.outputs.latest }}"
+          title: "chore: pin Probe v${{ steps.check.outputs.latest }}"
+          body: |
+            Probe shipped `v${{ steps.check.outputs.latest }}`; this package pins
+            `v${{ steps.check.outputs.pinned }}`.
+
+            Check Probe's release notes before merging. A new Probe can change which
+            checks run and what the reports contain, so this is proposed rather than
+            applied automatically.
